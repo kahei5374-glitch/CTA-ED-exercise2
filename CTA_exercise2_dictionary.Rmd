@@ -1,7 +1,7 @@
 ---
 title: "CTA-ED Exercise 2: dictionary-based methods"
-author: "Marion Lieutaud"
-date: "2/14/2024"
+author: "Ka Hei, Nado, MengYue"
+date: "10/2/2026"
 output: html_document
 ---
 
@@ -51,9 +51,11 @@ getwd()
 
 In this exercise we'll be using another new dataset. The data were collected from the Twitter accounts of the top eight newspapers in the UK by circulation. You can see the names of the newspapers in the code below:
 
-```{r, eval=FALSE}
+```{r, eval=FALSE} 
 # This is a code chunk to show the code that collected the data using the twitter API, back in 2020. 
 # You don't need to run this, and this chunk of code will be ignored when you knit to html, thanks to the 'eval=FALSE' command in the chunk option.
+
+#eval=FALSE = don’t run this code; just show it
 
 newspapers = c("TheSun", "DailyMailUK", "MetroUK", "DailyMirror", 
                "EveningStandard", "thetimes", "Telegraph", "guardian")
@@ -80,6 +82,8 @@ You can download the tweets data directly from the source in the following way: 
 
 ```{r, eval = F}
 tweets  <- readRDS(gzcon(url("https://github.com/cjbarrie/CTA-ED/blob/main/data/sentanalysis/newstweets.rds?raw=true")))
+
+#gzcon = Treat the incoming data as gzipped and decompress it before reading
 ```
 
 
@@ -110,9 +114,14 @@ tweets <- tweets %>%
 ```{r, echo = F}
 tweets %>% 
   arrange(created_at) %>%
-  tail(5) %>%
-  kbl() %>%
+  tail(5) %>% #keep only the last 5 rows of that sorted data -> the 5 most recent tweets cuz it's after arrange()
+  kbl() %>% #transforms the data into a table format, which could be styled
   kable_styling(c("striped", "hover", "condensed", "responsive"))
+
+#striped -> adds alternating row colours to improve readability
+#hover -> highlights a row when your mouse moves over it
+#condensed -> reduces padding so the table is more compact
+#responsive -> makes the table adjust to smaller screens (e.g., phones)
 ```
 
 We manipulate the data into tidy format again, unnesting each token (here: words) from the tweet text. 
@@ -121,14 +130,14 @@ We manipulate the data into tidy format again, unnesting each token (here: words
 tidy_tweets <- tweets %>% 
   mutate(desc = tolower(tweet)) %>%
   unnest_tokens(word, desc) %>%
-  filter(str_detect(word, "[a-z]"))
+  filter(str_detect(word, "[a-z]")) #keeping only the rows where the token contains at least one alphabetic character
 ```
 
 We'll then tidy this further, as in the previous example, by removing stop words:
 
 ```{r}
 tidy_tweets <- tidy_tweets %>%
-    filter(!word %in% stop_words$word)
+    filter(!word %in% stop_words$word) #removes stop words from tokenized data
 ```
 
 ## Get sentiment dictionaries
@@ -142,15 +151,15 @@ Several sentiment dictionaries come bundled with the <tt>tidytext</tt> package. 
 We can have a look at some of these to see how the relevant dictionaries are stored. 
 
 ```{r}
-get_sentiments("afinn")
+get_sentiments("afinn") #turning text into numbers based on the sentiment
 ```
 
 ```{r}
-get_sentiments("bing")
+get_sentiments("bing") #only showing positive or negative
 ```
 
 ```{r}
-get_sentiments("nrc")
+get_sentiments("nrc") #show 1/0 for the 10 categories
 ```
 
 What do we see here. First, the `AFINN` lexicon gives words a score from -5 to +5, where more negative scores indicate more negative sentiment and more positive scores indicate more positive sentiment.  The `nrc` lexicon opts for a binary classification: positive, negative, anger, anticipation, disgust, fear, joy, sadness, surprise, and trust, with each word given a score of 1/0 for each of these sentiments. In other words, for the `nrc` lexicon, words appear multiple times if they enclose more than one such emotion (see, e.g., "abandon" above). The `bing` lexicon is most minimal, classifying words simply into binary "positive" or "negative" categories. 
@@ -160,11 +169,11 @@ Let's see how we might filter the texts by selecting a dictionary, or subset of 
 ```{r}
 
 nrc_fear <- get_sentiments("nrc") %>% 
-  filter(sentiment == "fear")
+  filter(sentiment == "fear") #get all the fear words from the nrc lexicon
 
 tidy_tweets %>%
-  inner_join(nrc_fear) %>%
-  count(word, sort = TRUE)
+  inner_join(nrc_fear) %>% #keeps only the words in your tweets that also appear in the fear lexicon
+  count(word, sort = TRUE) #create a table by counting the unique values of word, from most frequent to least frequent
 
 ```
 
@@ -181,7 +190,7 @@ tidy_tweets$date <- as.Date(tidy_tweets$created_at)
 tidy_tweets <- tidy_tweets %>%
   arrange(date)
 
-tidy_tweets$order <- 1:nrow(tidy_tweets)
+tidy_tweets$order <- 1:nrow(tidy_tweets) #creates a sequence of numbers starting at 1 and ending at the number of rows
 
 ```
 
@@ -197,14 +206,14 @@ We then calculate the sentiment scores for each of our sentiment types (positive
 #get tweet sentiment by date
 tweets_nrc_sentiment <- tidy_tweets %>%
   inner_join(get_sentiments("nrc")) %>%
-  count(date, index = order %/% 1000, sentiment) %>%
-  spread(sentiment, n, fill = 0) %>%
+  count(date, index = order %/% 1000, sentiment) %>% #every 1000 tweets become one “chunk”
+  spread(sentiment, n, fill = 0) %>% #takes the long data and turns it into wide data, sentiment becomes column name, n becomes values, fill=0 -> replaces missing values with 0
   mutate(sentiment = positive - negative)
 
 tweets_nrc_sentiment %>%
   ggplot(aes(date, sentiment)) +
   geom_point(alpha=0.5) +
-  geom_smooth(method= loess, alpha=0.25)
+  geom_smooth(method= loess, alpha=0.25) #locally estimated scatterplot smoothing, alpha= transparency
 
 ```
 
@@ -213,7 +222,7 @@ How do our different sentiment dictionaries look when compared to each other? We
 ```{r}
 
 tidy_tweets %>%
-  inner_join(get_sentiments("bing")) %>%
+  inner_join(get_sentiments("bing")) %>% #only positive and negative but not all the emotions
   count(date, index = order %/% 1000, sentiment) %>%
   spread(sentiment, n, fill = 0) %>%
   mutate(sentiment = positive - negative) %>%
@@ -293,11 +302,11 @@ totals <- tidy_tweets %>%
 #plot
 tidy_tweets %>%
   mutate(obs=1) %>%
-  filter(grepl(paste0(mordict, collapse = "|"),word, ignore.case = T)) %>%
+  filter(grepl(paste0(mordict, collapse = "|"),word, ignore.case = T)) %>% #First turn all dictionary words into one big pattern like death|illness|hospital|…, then check each tokenized word to see if it matches any of those dictionary words, and finally keep only the rows where a match is found
   group_by(date) %>%
   summarise(sum_mwords = sum(obs)) %>%
-  full_join(totals, word, by="date") %>%
-  mutate(sum_mwords= ifelse(is.na(sum_mwords), 0, sum_mwords),
+  full_join(totals, word, by="date") %>% #merges the two datasets by date and keeps all dates from both tables, filling missing values with NA #full_join creates a brand‑new tibble 
+  mutate(sum_mwords= ifelse(is.na(sum_mwords), 0, sum_mwords), #Create (or overwrite) the column sum_mwords. If the value is NA, replace it with 0. Otherwise, keep the original value.
          pctmwords = sum_mwords/sum_words) %>%
   ggplot(aes(date, pctmwords)) +
   geom_point(alpha=0.5) +
@@ -318,7 +327,7 @@ With the `quanteda` package we first need to create a "corpus" object, by declar
 ```{r}
 tweets$date <- as.Date(tweets$created_at)
 
-tweet_corpus <- corpus(tweets, text_field = "tweet", docvars = "date")
+tweet_corpus <- corpus(tweets, text_field = "tweet", docvars = tweets["date"])
 ```
 
 
@@ -331,21 +340,22 @@ We then take the `data_dictionary_LSD2015` that comes bundled with `quanteda` an
 
 ```{r}
 # select only the "negative" and "positive" categories
-data_dictionary_LSD2015_pos_neg <- data_dictionary_LSD2015[1:2]
-toks_news_lsd <- tokens_lookup(toks_news, dictionary = data_dictionary_LSD2015_pos_neg)
+data_dictionary_LSD2015_pos_neg <- data_dictionary_LSD2015[1:2] #takes the first two elements of the LSD2015 dictionary (the “positive” and “negative” word lists) and saves them as a new dictionary
+toks_news_lsd <- tokens_lookup(toks_news, dictionary = data_dictionary_LSD2015_pos_neg) #searches through your tokenised words and replaces any matches with the dictionary category they belong to
 ```
 
 This creates a long list of all the texts (tweets) annotated with a series of 'positive' or 'negative' annotations depending on the valence of the words in that text. The creators of `quanteda` then recommend we generate a document feature matric from this. Grouping by date, we then get a dfm object, which is a quite convoluted list object that we can plot using base graphics functions for plotting matrices.
 
 ```{r}
 # create a document document-feature matrix and group it by date
+#A dfm (document‑feature matrix) is a big table that counts how many times each word or dictionary category appears in each document.
 dfmat_news_lsd <- dfm(toks_news_lsd) %>% 
   dfm_group(groups = date)
 
 # plot positive and negative valence over time
 matplot(dfmat_news_lsd$date, dfmat_news_lsd, type = "l", lty = 1, col = 1:2,
-        ylab = "Frequency", xlab = "")
-grid()
+        ylab = "Frequency", xlab = "") #matplot uses the columns (positive, negative) as two separate lines.
+grid() #Adds a background grid to make the plot easier to read.
 legend("topleft", col = 1:2, legend = colnames(dfmat_news_lsd), lty = 1, bg = "white")
 
 # plot overall sentiment (positive  - negative) over time
@@ -362,7 +372,9 @@ Alternatively, we can recreate this in tidy format as follows:
 ```{r}
 negative <- dfmat_news_lsd@x[1:121]
 positive <- dfmat_news_lsd@x[122:242]
-date <- dfmat_news_lsd@Dimnames$docs
+#@x -> a numeric vector containing all non‑zero values of the dfm, stored column‑by‑column
+#to read the dfm -> as.matrix(dfmat_news_lsd), number of rows and column -> dim(dfmat_news_lsd)
+date <- dfmat_news_lsd@Dimnames$docs #the names of the rows
 
 
 tidy_sent <- as.data.frame(cbind(negative, positive, date))
@@ -389,7 +401,7 @@ tidy_sent %>%
 docvars(toks_news) # ok all docvars are there
 
 # look at how many different newspaper we have in the dataset
-unique(docvars(toks_news)$username)
+unique(docvars(toks_news)$username) #From the metadata attached to each document, extract the username column and show me all the distinct entries
 ```
 
 ```{r}
@@ -406,8 +418,8 @@ tidy_dfm_news_lsd <- dfm_news_lsd %>%
 # plot by newspaper
 tidy_dfm_news_lsd %>%
   ggplot() + # when we enter ggplot environment we need to use '+' not '%>%', 
-  geom_point(aes(x=reorder(newspaper, -sentiment), y=sentiment)) + # reordering newspaper variable so it is displayed from most negative to most positive
-  coord_flip() + # pivot plot by 90 degrees
+  geom_point(aes(x=reorder(newspaper, -sentiment), y=sentiment)) + # reordering (sorts the newspapers by sentiment) newspaper variable so it is displayed from most negative to most positive
+  coord_flip() + # pivot plot by 90 degrees -> making it newspaper on x-axis and sentiment on y-axis
   xlab("Newspapers") + # label x axis
   ylab("Overall tweet sentiment (negative to positive)") + # label y axis
   theme_minimal() # pretty graphic theme
@@ -431,7 +443,7 @@ head(tidy_dfm_news_lsd) # inspect
 
 #We want to separate them into two distinct variables. We can do it using the command extract() and regex. It's easy because the separation is always a .
 tidy_dfm_news_lsd <- tidy_dfm_news_lsd %>%
-  extract(doc_id, into = c("newspaper", "date"), regex = "([a-zA-Z]+)\\.(.+)") %>%
+  extract(doc_id, into = c("newspaper", "date"), regex = "([a-zA-Z]+)\\.(.+)") %>% #splits the combined doc_id into newspaper and date using a regex
   mutate(date = as.Date(date)) # clarify to R that this variable is a date
 
 head(tidy_dfm_news_lsd) # inspect
@@ -440,6 +452,7 @@ head(tidy_dfm_news_lsd) # inspect
 tidy_dfm_news_lsd <- tidy_dfm_news_lsd %>%
   mutate(sentiment = positive - negative) # recreate variable for overall sentiment
 
+head(tidy_dfm_news_lsd)
 
 tidy_dfm_news_lsd %>%
   ggplot(aes(x=date, y=sentiment)) +
@@ -464,11 +477,11 @@ totals_newspaper <- tidy_tweets %>%
 #plot
 tidy_tweets %>%
   mutate(obs=1) %>%
-  filter(grepl(paste0(trans_words, collapse = "|"), word, ignore.case = T)) %>%
+  filter(grepl(paste0(trans_words, collapse = "|"), word, ignore.case = T)) %>% #filtered out the 0 tokens
   group_by(newspaper) %>%
   summarise(sum_mwords = sum(obs)) %>%
-  full_join(totals_newspaper, word, by="newspaper") %>%
-  mutate(sum_mwords= ifelse(is.na(sum_mwords), 0, sum_mwords),
+  full_join(totals_newspaper, by="newspaper") %>%
+  mutate(sum_mwords= ifelse(is.na(sum_mwords), 0, sum_mwords), #cuz by combining the data frame, some rows may contain NA in the filtered one as we discussed
          pcttranswords = sum_mwords/sum_words) %>%
   ggplot(aes(x=reorder(newspaper, -pcttranswords), y=pcttranswords)) +
   geom_point() +
@@ -487,46 +500,126 @@ trans_dict <- dictionary(list(trans = c('trans', 'transgender', 'trans rights', 
 dfm_dict_trans <- toks_news %>%
   tokens_lookup(dictionary = trans_dict) %>% # look up the occurrence of my dictionaries
   dfm() %>% # turn into dfm
-  dfm_group(groups = username) %>% # group by newspaper
+  dfm_group(groups = newspaper) %>% # group by newspaper
   convert(to = "data.frame") %>% # convert it to a dataframe
   rename("newspaper" = doc_id) %>% # rename variable 
-  full_join(totals_newspaper, word, by="newspaper")
-  
-# then just tweak the same code as before
-tidy_dfm_trans <- dfm_trans %>% 
-  dfm_group(groups = newspaper) %>% # we group by newspaper
-  convert(to = "data.frame") %>% # convert it to a dataframe
-  rename("newspaper" = doc_id) # rename variable
+  full_join(totals_newspaper, by="newspaper")
+
+head(dfm_dict_trans)
+
 
 # plot by newspaper
-tidy_dfm_trans %>%
-  ggplot() + # when we enter ggplot environment we need to use '+' not '%>%', 
-  geom_point(aes(x=reorder(newspaper, -sentiment), y=sentiment)) + # reordering newspaper variable so it is displayed from most negative to most positive
-  coord_flip() + # pivot plot by 90 degrees
-  xlab("Newspapers") + # label x axis
-  ylab("Overall tweet sentiment (negative to positive)") + # label y axis
-  theme_minimal() # pretty graphic theme
+dfm_dict_trans %>%
+  mutate(
+    trans = ifelse(is.na(trans), 0, trans),
+    terf  = ifelse(is.na(terf), 0, terf),
+    sum_words = ifelse(is.na(sum_words), 0, sum_words)
+  ) %>%
+  mutate(
+    pct_trans = trans / sum_words,
+    pct_terf  = terf  / sum_words
+  ) %>%
+  pivot_longer(cols = c(pct_trans, pct_terf),
+               names_to = "category",
+               values_to = "pct") %>%
+  ggplot(aes(x = reorder(newspaper, -pct), y = pct, color = category)) +
+  geom_point() +
+  coord_flip() +
+  xlab("Newspaper") +
+  ylab("Percentage of dictionary matches") +
+  theme_minimal()
+
 ```
 
 
 ```{r}
-#plot
-tidy_tweets %>%
+#plot by tidytext
+trans_words <- c("trans", "transgender", "lgbtq", "lgbtq+") 
+terf_words <- c("terf", "terfs", "transphobic", "transphobia")
+all_words <- c(trans_words, terf_words)
+
+totals_newspaper <- tidy_tweets %>%
   mutate(obs=1) %>%
-  filter(grepl(paste0(mordict, collapse = "|"), word, ignore.case = T)) %>%
-  group_by(date) %>%
-  summarise(sum_mwords = sum(obs)) %>%
-  full_join(totals, word, by="date") %>%
-  mutate(sum_mwords= ifelse(is.na(sum_mwords), 0, sum_mwords),
-         pctmwords = sum_mwords/sum_words) %>%
-  ggplot(aes(date, pctmwords)) +
-  geom_point(alpha=0.5) +
-  geom_smooth(method= loess, alpha=0.25) +
-  xlab("Date") + ylab("% mortality words")
+  group_by(newspaper) %>%
+  summarise(sum_words = sum(obs))
+
+#tag each token with its category
+tidy_tagged <- tidy_tweets %>%
+  mutate(
+    category = case_when(
+      word %in% trans_words ~ "trans",
+      word %in% terf_words  ~ "terf",
+      TRUE ~ NA_character_
+    )
+  )
+
+#Count matches per newspaper and category
+dict_counts <- tidy_tagged %>%
+  filter(!is.na(category)) %>%
+  group_by(newspaper, category) %>%
+  summarise(count = n(), .groups = "drop")
+
+#join totals + compute percentages
+dict_plot_data <- dict_counts %>%
+  left_join(totals_newspaper, by = "newspaper") %>%
+  mutate(pct = count / sum_words)
+
+#plot
+dict_plot_data %>%
+  ggplot(aes(x = reorder(newspaper, -pct), y = pct, color = category)) +
+  geom_point(size = 3, alpha = 0.7) +
+  coord_flip() +
+  xlab("Newspaper") +
+  ylab("% of words matching dictionary") +
+  theme_minimal()
 
 
 ```
 
 3. Apply the Lexicoder Sentiment Dictionary to the news tweets, but break down the analysis by newspaper
+```{r}
+tweets$newspaper <- tweets$username
+tweet_corpus <- corpus(tweets, text_field = "tweet", docvars = "newspaper")
+
+toks <- tokens(tweet_corpus, remove_punct = TRUE)
+
+#apply lexicoder
+dfm_sent <- dfm(toks) %>% 
+  dfm_lookup(dictionary = data_dictionary_LSD2015)
+
+#group by newspaper and convert
+dfm_sent_news <- dfm_sent %>%
+  dfm_group(groups = newspaper)
+
+tidy_dfm_news <- dfm_sent_news %>%
+  convert(to = "data.frame") %>%
+  rename("newspaper" = doc_id) %>% # when converting to data.frame, R called our grouping variable 'doc_id'. We rename it 'newspaper' instead.
+  mutate(sentiment = positive - negative) # create variable for overall sentiment
+
+head(tidy_dfm_news)
+
+#positive vs negative sentiment per newspaper
+tidy_dfm_news %>%
+  pivot_longer(cols = c(positive, negative),
+               names_to = "sentiment_type",
+               values_to = "count") %>%
+  ggplot(aes(x = reorder(newspaper, -count), y = count, color = sentiment_type)) +
+  geom_point(size = 3) +
+  coord_flip() +
+  theme_minimal() +
+  xlab("Newspaper") +
+  ylab("Lexicoder sentiment word counts")
+
+#Net sentiment (positive − negative) per newspaper
+tidy_dfm_news %>%
+  ggplot(aes(x = reorder(newspaper, -sentiment), y = sentiment)) +
+  geom_point(size = 3) +
+  coord_flip() +
+  theme_minimal() +
+  xlab("Newspaper") +
+  ylab("Net sentiment (positive − negative)")
+
+```
+
 4. Don't forget to 'knit' to produce your final html output for the exercise.
 
